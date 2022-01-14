@@ -1,0 +1,31 @@
+I make two patches using command "diff -Naur linux-5.15.7/ build/linux-5.15.7 --exclude-from=<( \
+find build/linux-5.15.7/ linux-5.15.7 -type f -not \( -name '.tbl'  -or -name '.c' -or -name '*.h' \) \
+| sed 's:^./\([^/]\)$:\1:' \
+) > patch.txt"
+one is used after running make mrproper and other is before it.
+ 
+LOGIC AND EXPLANANTION:
+
+1. Go to directory :/home/kern/build/linux-5.15.7/include/linux/sched.h
+	We use Kernal data structure named "struct task_struct" in sched.h
+	to obtain struct sched_entity of every task which gives us the access to vruntime of each process.
+	And Inside the struct task_struct adding an attribute of int wt in as struct task_struct s64 wt;
+	This variable stores the remaining delay that must be reflected in the process execution.
+2. Go to directory :/home/kern/build/linux-5.15.7/include/linux/init_task.h
+	add an initialization to the wt(as .wt) attribute you just added. For any new process, wt is initialized to 0
+
+3. We go to this directory: /home/kern/build2/linux-5.15.7/arch/x86/entry/syscalls/syscall_64.tbl
+	and we give entry at 449 to our syscall in the syscall_64.tbl.
+	 as : 449 common  set_total_wt         sys_set_total_wt
+4. We go to this directory: /home/kern/build2/linux-5.15.4/kernel/sys.c
+	In this we create SYSCALL_DEFINE1(set_total_wt,int, wt)  which is used to set the value of delay to the 
+	process that call it.
+5. We go to this directory: /home/kern/build/linux-5.15.7/kernel/sched/fair.c
+	and then in update_curr we update as
+	curr->vruntime += calc_delta_fair(delta_exec, curr)+ (current->wt>0 )* delta_exec ;
+5. Now we run make command and compile the whole system.
+
+
+Just run testing.c after compiling.
+
+I also added new_madefilesinlinux by copying the whole file in which we have made changes.
